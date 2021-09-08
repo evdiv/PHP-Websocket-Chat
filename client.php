@@ -7,7 +7,7 @@ echo '<pre>', print_r($_SESSION), '</pre>';
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Admin chat form</title>
+  <title>Client chat form</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -25,7 +25,7 @@ echo '<pre>', print_r($_SESSION), '</pre>';
 
         <div class="col-sm-4 col-sm-offset-4">
 
-            <p>Admin chat form</p>
+            <p>Client chat form</p>
 
             <!--Client chat Form -->
            <div class="alert alert-warning" id="postedMsgs" style="min-height: 220px;">
@@ -36,7 +36,7 @@ echo '<pre>', print_r($_SESSION), '</pre>';
                 <input type="text" 
                         id="textMsg" 
                         value="" 
-                        data-admin-id="<?= $_SESSION['ChatAdmin']['id'] ?>" 
+                        data-user-id="<?= $_SESSION['ChatUser']['id'] ?>" 
                         placeholder="Enter text here..." 
                         class="form-control">
             </div>
@@ -65,12 +65,13 @@ echo '<pre>', print_r($_SESSION), '</pre>';
     $('#sendMsg').click(function() {
         const textMsgEl = $('#textMsg');
         const data = {
-            adminId: textMsgEl.data('admin-id'),
+            userId: textMsgEl.data('user-id'),
             msg: textMsgEl.val()
         }
         console.log(data);
         conn.send(JSON.stringify(data));
     });
+
 
 </script>
 

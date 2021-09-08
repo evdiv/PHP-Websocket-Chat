@@ -2,15 +2,18 @@
 namespace Chat;
 
 class User {
-	private $id = 0;
-	private $name = '';
-	private $email = '';
-	private $active = 0;
-	private $login_date;
+
+	use ArrayAwareTrait;
+
+	public $id = 0;
+	public $name = '';
+	public $email = '';
+	public $active = 0;
+	public $login_date;
 	private $db;
 
 	function __construct() {
-		$this->db = new Database;
+		$this->db = (new Database)->get();
 	}
 
 	public function setName($name = ''){
@@ -38,28 +41,33 @@ class User {
 		$stmt->bindParam(":login_date", $this->login_date);
 
 		try{
-			return !!$stmt->execute();
+			$stmt->execute();
+			$this->id = $this->db->lastInsertId();
+			return $this->id;
+			
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
 	}
-
+	
 	public function getById($id = 0){
 		$stmt = $this->db->prepare("SELECT * FROM users WHERE Id = :id");
 		$stmt->bindParam(":id", $id);
 
 		try{
 			if($stmt->execute()){
-				$user = $stmt->fetch(\PDO::FETCH_ASSOC);
+				$row = $stmt->fetch(\PDO::FETCH_ASSOC);
+				if($row){
+					$this->id = $row['Id'];
+					$this->name = $row['name'];
+					$this->email = $row['email'];
+					$this->active = $row['active'];
+					$this->login_date = $row['login_date'];
 
-				$this->id = $user['Id'];
-				$this->name = $user['name'];
-				$this->email = $user['email'];
-				$this->active = $user['active'];
-				$this->login_date = $user['login_date'];
-
-				return $this->id;
+					return $this;
+				}
 			}
+
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
@@ -72,15 +80,16 @@ class User {
 
 		try{
 			if($stmt->execute()){
-				$user = $stmt->fetch(\PDO::FETCH_ASSOC);
+				$row = $stmt->fetch(\PDO::FETCH_ASSOC);
+				if($row) {
+					$this->id = $row['Id'];
+					$this->name = $row['name'];
+					$this->email = $row['email'];
+					$this->active = $row['active'];
+					$this->login_date = $row['login_date']; 
 
-				$this->id = $user['Id'];
-				$this->name = $user['name'];
-				$this->email = $user['email'];
-				$this->active = $user['active'];
-				$this->login_date = $user['login_date']; 
-
-				return $this->id;
+					return $this;
+				}
 			}
 		} catch(Exception $e){
 			die($e->getMessage());
@@ -99,7 +108,8 @@ class User {
 		$stmt->bindParam(":id", $id);
 
 		try{
-			return $stmt->execute();
+			$stmt->execute();
+			return $stmt->rowCount();
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
@@ -112,13 +122,10 @@ class User {
 		$stmt->bindParam(":id", $id);
 
 		try{
-			return $stmt->execute();
+			$stmt->execute();
+			return $stmt->rowCount();
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
 	}
-
-
-
-
 }

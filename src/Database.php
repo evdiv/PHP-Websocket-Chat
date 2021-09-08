@@ -15,6 +15,10 @@ class Database {
 		}
 	}
 
+	public function get() {
+		return $this->conn;
+	}
+
 	private function connect() {
 		try{
 			$conn = new \PDO('mysql:host=' . $this->host . '; dbname=' . $this->db, $this->user, $this->password);
@@ -25,9 +29,4 @@ class Database {
 			die('Database Error: ' . $e->getMessage());
 		}
 	}
-
-	public function prepare($sql = '') {
-		return $this->conn->prepare($sql);
-	}
-
 }
