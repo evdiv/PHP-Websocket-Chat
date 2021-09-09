@@ -1,14 +1,20 @@
 <?php
-session_start();
+
 require './vendor/autoload.php';
 
-$action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_SPECIAL_CHARS);
+$request = (new Chat\Request())->get();
 
-if($action == 'save'){
+
+if($request['action'] == 'logIn'){
+
 	$User = new Chat\User;
-	$User->save();
-	($User->getByEmail()) ? $User->logIn() : $User->store();
+	$User->save($request);
 
-	$_SESSION['ChatUser'] = $User->toArray();
-	header('Location: /client.php');
+	if($User->getByEmail()) {
+		$User->logIn();
+	} else {
+		$User->store();
+	}
+
+	echo json_encode(array('id' => $User->id));
 }

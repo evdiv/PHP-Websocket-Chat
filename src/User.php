@@ -24,20 +24,18 @@ class User {
 		$this->email = filter_var($email, FILTER_SANITIZE_EMAIL);
 	}
 
-	public function save() {
-		$this->name = filter_input(INPUT_POST, 'name', FILTER_SANITIZE_STRING);
-		$this->email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-		$this->active = 1;
+	public function save($request = array()) {
+		$this->name = !empty($request['name']) ? $request['name'] : '';
+		$this->email = !empty($request['email']) ? $request['email'] : '';
 		$this->login_date = date('Y-m-d h:i:s');
 	}
 
 	public function store() {
-		$stmt = $this->db->prepare("INSERT INTO `users` (`name`, `email`, `active`, `login_date`)
-									VALUES(:name, :email, :active, :login_date)");
+		$stmt = $this->db->prepare("INSERT INTO `users` (`name`, `email`, `login_date`, `active`)
+											VALUES(:name, :email, :login_date, 1)");
 
 		$stmt->bindParam(":name", $this->name);
 		$stmt->bindParam(":email", $this->email);
-		$stmt->bindParam(":active", $this->active);
 		$stmt->bindParam(":login_date", $this->login_date);
 
 		try{
