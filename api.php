@@ -2,19 +2,25 @@
 
 require './vendor/autoload.php';
 
-$request = (new Chat\Request())->get();
+$Request = new Chat\Request();
+$request = $Request->get();
 
 
 if($request['action'] == 'logIn'){
+	$request = $Request->validate($request, array('name', 'email'));
 
-	$User = new Chat\User;
-	$User->save($request);
-
-	if($User->getByEmail()) {
-		$User->logIn();
-	} else {
-		$User->store();
+	if($Request->getErrors()){
+		echo json_encode(array('errors' => $Request->getErrors()));
+		exit;
 	}
 
-	echo json_encode(array('id' => $User->id));
+	$User = new Chat\User;
+	if($User->getByEmail($request['email'])) {
+		$User->logIn();
+	} else {
+		$User->store($request);
+	}
+
+	echo json_encode(array('token' => $User->getToken(), 
+							'errors' => $User->getErrors()));
 }

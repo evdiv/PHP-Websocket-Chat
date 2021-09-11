@@ -42,7 +42,6 @@
                     <input type="text" 
                             id="textMsg" 
                             value="" 
-                            data-user-id="" 
                             placeholder="Enter text here..." 
                             class="form-control">
                 </div>
@@ -52,19 +51,17 @@
             </div>
 
         </div>
-
   </div>
 </div>
 
 <script>
-
     $('#signInBtn').click(() => {
         const userName = $('#userName').val(), 
               userEmail = $('#userEmail').val();
 
         const data = {
             'action': 'logIn',
-            'user': userName,
+            'name': userName,
             'email': userEmail
         }
 
@@ -77,20 +74,18 @@
         } )
         .then(response => response.json())
         .then(data => {
-            if(data.id > 0){
+            if(data.token.length > 0){
                 $('#loginForm').hide();
                 $('#chatForm').show();
-                $('#textMsg').attr('data-user-id', data.id);
+                sessionStorage.setItem('token', data.token);
             }
         })
     });
-
 
     const conn = new WebSocket('ws://localhost:8080');
 
     conn.onopen = e => console.log("Connection established!");
     conn.onmessage = e => console.log(e.data);
-
 
     $('#sendMsgBtn').click(() => {
         const textMsgEl = $('#textMsg');
@@ -99,6 +94,7 @@
             msg: textMsgEl.val()
         }
         conn.send(JSON.stringify(data));
+        textMsgEl.val("");
     });
 
 </script>

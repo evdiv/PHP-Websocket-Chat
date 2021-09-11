@@ -17,4 +17,19 @@ trait ArrayAwareTrait
         );
     }
 
+    /**
+     * Return an Entity 
+     * @return object
+     */
+    public function populate($data = array()){
+        if(empty($data) || !is_array($data)){
+            return;
+        }
+
+        $has = get_object_vars($this);
+        foreach ($has as $name => $currentValue) {
+            $this->$name = isset($data[$name]) ? $data[$name] : $currentValue;
+        }
+        return $this;
+    }
 }
