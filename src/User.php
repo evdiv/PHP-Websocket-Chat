@@ -11,8 +11,6 @@ class User {
 	private $email = '';
 	private $active = 0;
 	private $login_date;
-	private $token = '';
-	private $errors = [];
 	private $db;
 
 	function __construct() {
@@ -27,8 +25,8 @@ class User {
 		$this->email = filter_var($email, FILTER_SANITIZE_EMAIL);
 	}
 
-	public function setToken($token = ''){
-		$this->token = filter_var($token, FILTER_SANITIZE_STRING);
+	public function getId(){
+		return $this->id;
 	}
 
 	public function getName(){
@@ -39,31 +37,21 @@ class User {
 		return $this->email;
 	}
 
-	public function getToken(){
-		return $this->token;
-	}
-
-	public function getErrors(){
-		return $this->errors;
-	}
-
 
 	public function store($request) {
 
 		$this->name = $request['name'];
 		$this->email = $request['email'];
-		$this->token = $this->generateToken();
 		$this->login_date = date('Y-m-d h:i:s');
 		$this->active = 1;
 
-		$stmt = $this->db->prepare("INSERT INTO `users` (`name`, `email`, `login_date`, `active`, `token`)
-											VALUES(:name, :email, :login_date, :active, :token)");
+		$stmt = $this->db->prepare("INSERT INTO `users` (`name`, `email`, `login_date`, `active`)
+											VALUES(:name, :email, :login_date, :active)");
 
 		$stmt->bindParam(":name", $this->name);
 		$stmt->bindParam(":email", $this->email);
 		$stmt->bindParam(":login_date", $this->login_date);
 		$stmt->bindParam(":active", $this->active);
-		$stmt->bindParam(":token", $this->token);
 
 		try{
 			$stmt->execute();
@@ -108,7 +96,6 @@ class User {
 		$this->id = !empty($id) ? $id : $this->id;
 		$this->login_date = date('Y-m-d h:i:s');
 		$this->active = 1;
-		$this->token = $this->generateToken();
 
 		return $this->update();
 	}
@@ -116,7 +103,6 @@ class User {
 	public function logOut($id = 0) {
 		$this->id = !empty($id) ? $id : $this->id;
 		$this->active = 0;
-		$this->token = '';
 
 		return $this->update();
 	}
@@ -125,14 +111,12 @@ class User {
 	private function update() {
 		$stmt = $this->db->prepare("UPDATE users 
 									SET active = :active, 
-										token = :token,
 										login_date = :login_date
 									WHERE id = :id");
 
 
 		$stmt->bindParam(":active", $this->active);
 		$stmt->bindParam(":login_date", $this->login_date);
-		$stmt->bindParam(":token", $this->token);
 		$stmt->bindParam(":id", $this->id);
 
 		try{
@@ -141,10 +125,5 @@ class User {
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
-	}
-
-	private function generateToken($length = 16){
-		$bytes = openssl_random_pseudo_bytes($length);
-    	return bin2hex($bytes);
 	}
 }

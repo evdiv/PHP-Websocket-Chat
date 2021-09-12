@@ -10,7 +10,7 @@ trait ArrayAwareTrait
     public function toArray()
     {
         return array_filter(get_object_vars($this), function ($item) {
-                if (!$item instanceof \PDO) {
+                if (!is_object($item) && !is_resource($item)) {
                     return $item;
                 }
             }, 
@@ -19,7 +19,7 @@ trait ArrayAwareTrait
 
     /**
      * Return an Entity 
-     * @return object
+     * @return false or object
      */
     public function populate($data = array()){
         if(empty($data) || !is_array($data)){

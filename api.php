@@ -21,6 +21,8 @@ if($request['action'] == 'logIn'){
 		$User->store($request);
 	}
 
-	echo json_encode(array('token' => $User->getToken(), 
-							'errors' => $User->getErrors()));
+	$ChatRoom = new Chat\ChatRoom;
+	$ChatRoom->store($User->getId());
+
+	echo json_encode(array('token' => $ChatRoom->getToken()));
 }

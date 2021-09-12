@@ -55,6 +55,20 @@
 </div>
 
 <script>
+    $(document).ready(() => {
+        const token = sessionStorage.getItem('token')
+        if(token){
+            $('#loginForm').hide();
+            $('#chatForm').show();
+
+            const conn = new WebSocket('ws://localhost:8080?token=' + token);
+
+            conn.onopen = e => console.log("Connection established!");
+            conn.onclose = e => sessionStorage.removeItem('token');
+            conn.onmessage = e => console.log(e.data);
+        }
+    });
+
     $('#signInBtn').click(() => {
         const userName = $('#userName').val(), 
               userEmail = $('#userEmail').val();
@@ -77,20 +91,24 @@
             if(data.token.length > 0){
                 $('#loginForm').hide();
                 $('#chatForm').show();
+
                 sessionStorage.setItem('token', data.token);
+                const conn = new WebSocket('ws://localhost:8080?token='+data.token);
+
+                conn.onopen = e => console.log("Connection established!");
+                conn.onclose = e => sessionStorage.removeItem('token');
+                conn.onmessage = e => console.log(e.data);
             }
         })
     });
 
-    const conn = new WebSocket('ws://localhost:8080');
+ 
 
-    conn.onopen = e => console.log("Connection established!");
-    conn.onmessage = e => console.log(e.data);
 
     $('#sendMsgBtn').click(() => {
         const textMsgEl = $('#textMsg');
         const data = {
-            userId: textMsgEl.data('user-id'),
+            token: sessionStorage.getItem('token'),
             msg: textMsgEl.val()
         }
         conn.send(JSON.stringify(data));
