@@ -7,6 +7,7 @@ class ChatRoom {
 
 	private $id = 0;
 	private $user_id = 0;
+	private $admin_id = 0;
 	private $active = 0;
 	private $token = '';
 	private $created_at;
@@ -25,20 +26,25 @@ class ChatRoom {
 		return $this->token;
 	}
 
-	public function store($user_id) {
-
+	public function setUserId($user_id){
 		$this->user_id = $user_id;
+	}
+
+	public function setAdminId($admin_id){
+		$this->admin_id = $admin_id;
+	}
+
+	public function store() {
 		$this->active = 1;
 		$this->token = Request::generateToken();
-		$this->created_at = date('Y-m-d h:i:s');
 
-		$stmt = $this->db->prepare("INSERT INTO `chat_rooms` (`user_id`, `active`, `token`, `created_at`)
-											VALUES(:user_id, :active, :token, :created_at)");
+		$stmt = $this->db->prepare("INSERT INTO `chat_rooms` (`user_id`, `admin_id`, `active`, `token`)
+											VALUES(:user_id, :admin_id, :active, :token)");
 
 		$stmt->bindParam(":user_id", $this->user_id);
+		$stmt->bindParam(":admin_id", $this->user_id);
 		$stmt->bindParam(":active", $this->active);
 		$stmt->bindParam(":token", $this->token);
-		$stmt->bindParam(":created_at", $this->created_at);
 
 		try{
 			$stmt->execute();
@@ -81,5 +87,13 @@ class ChatRoom {
 
 	public function user(){
 		return (new User())->getById($this->user_id);
+	}
+
+	public function admin(){
+		return (new User())->getById($this->admin_id);
+	}
+
+	public function messages(){
+		return (new Message())->getByChatRoomId($this->id);
 	}
 }

@@ -46,12 +46,13 @@ class Chat implements MessageComponentInterface {
 
         foreach ($this->clients as $client) {
 
-
-
-
-
-
-            if ($from !== $client) {
+            if ($from == $client) {
+                $Message = new Message();
+                $Message->setChatId($client->chatRoom['id']);
+                $Message->setFrom($client->user['id']);
+                $Message->setMsgText($msg);
+                $Message->store();
+            } else {
                 // The sender is not the receiver, send to each client connected
                 $client->send($msg);
             }
