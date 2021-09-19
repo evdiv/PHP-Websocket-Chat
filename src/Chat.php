@@ -34,6 +34,13 @@ class Chat implements MessageComponentInterface {
         // Store the new connection to send messages to later
         $this->clients->attach($conn);
 
+        foreach ($this->clients as $client) {
+            if (!empty($client->user['admin']) && $conn->user['id'] !== $client->user['id']) {
+                $data = array('action' => 'addUser', 'chatRoom' => $conn->chatRoom, 'user' => $conn->user);
+                $client->send(json_encode($data));
+            }
+        }
+
         echo "New connection! ({$conn->resourceId}) UserId: {$conn->user['id']}  ChatRoomId: {$conn->chatRoom['id']}\n";
     }
 
@@ -44,18 +51,64 @@ class Chat implements MessageComponentInterface {
         echo sprintf('Connection %d sending message "%s" to %d other connection%s' . "\n"
             , $from->resourceId, $msg, $numRecv, $numRecv == 1 ? '' : 's');
 
+
+        if(!empty($from->user['admin']) && Request::isJson($msg)){
+
+            $msgArr = json_decode($msg, true);
+
+            $msg = $msgArr['msg'];
+            $chatRoomToken = $msgArr['chatRoomToken'];
+
+            $ChatRoom = (new ChatRoom())->getByToken($chatRoomToken);
+
+            if($ChatRoom->getAdminId() !== $from->user['id']){
+                $ChatRoom->attachAdmin($from->user['id']);
+            }
+
+            $chatRoomId = $ChatRoom->getId();
+
+            echo "Chat Room ID: " . $chatRoomId . "\n";
+
+        
+        } else {
+            $ChatRoom = (new ChatRoom())->getById($from->chatRoom['id']);
+            $chatRoomId = $from->chatRoom['id'];
+
+            echo "Chat Room ID: " . $chatRoomId . "\n";
+        }
+
+        //Get the receipient from the Chat Room
+        $recipientId = $ChatRoom->getRecipientId($from->user['id']);
+
+        //Store the Message in the db
+        $Message = new Message();
+        $Message->setChatId($chatRoomId);
+        $Message->setFromUserId($from->user['id']);
+        $Message->setMsgText($msg);
+        $Message->store();
+
+        echo "This message is intended for userID: " . $recipientId . "\n";
+
         foreach ($this->clients as $client) {
 
-            if ($from == $client) {
-                $Message = new Message();
-                $Message->setChatId($client->chatRoom['id']);
-                $Message->setFrom($client->user['id']);
-                $Message->setMsgText($msg);
-                $Message->store();
-            } else {
-                // The sender is not the receiver, send to each client connected
-                $client->send($msg);
+            echo "Looping throug clients. Client ID " . $client->user['id'] . "\n";
+
+            if($client->user['id'] == $from->user['id']){
+                continue;
             }
+
+            $data = array('action' => 'addMessage', 'msg' => $msg, 'chatRoom' => $from->chatRoom, 'user' => $from->user);
+
+            if (empty($recipientId) && !empty($client->user['admin'])) {
+                echo "Sending message to all admins";
+                echo "Sending message to the Admin: " . $client->user['id'];
+
+                $client->send(json_encode($data));
+            
+            } elseif($recipientId == $client->user['id']){
+                echo "Sending message to the receipient: " . $client->user['id'];
+                $client->send(json_encode($data));
+            }  
         }
     }
 
@@ -63,6 +116,9 @@ class Chat implements MessageComponentInterface {
     public function onClose(ConnectionInterface $conn) {
         // The connection is closed, remove it, as we can no longer send it messages
         $this->clients->detach($conn);
+
+        (new ChatRoom())->close($conn->chatRoom['id']);
+        (new User())->logOut($conn->user['id']);
 
         echo "Connection {$conn->resourceId} has disconnected\n";
     }

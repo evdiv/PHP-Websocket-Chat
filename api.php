@@ -26,4 +26,5 @@ if($request['action'] == 'logIn'){
 	$ChatRoom->store();
 
 	echo json_encode(array('token' => $ChatRoom->getToken()));
+
 }

@@ -72,12 +72,9 @@
                 const textMsgEl = $('#textMsg')
                 const msg = textMsgEl.val();
                 conn.send(msg);
-                
+
                 textMsgEl.val("");
             });
-
-
-
         }
     });
 
@@ -115,8 +112,6 @@
             }
         })
     });
-
-
 
 </script>
 

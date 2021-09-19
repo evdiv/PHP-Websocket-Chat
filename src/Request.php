@@ -89,4 +89,10 @@ class Request {
 		$bytes = openssl_random_pseudo_bytes($length);
     	return bin2hex($bytes);
 	}
+
+
+	public static function isJson($string) {
+	   json_decode($string);
+	   return json_last_error() === JSON_ERROR_NONE;
+	}
 }

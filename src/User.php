@@ -62,6 +62,23 @@ class User {
 			die($e->getMessage());
 		}
 	}
+
+
+	public function getAllActive($id = 0){
+		$stmt = $this->db->prepare("SELECT * FROM users WHERE id = :id");
+		$stmt->bindParam(":id", $id);
+
+		try{
+			if($stmt->execute()){
+				$row = $stmt->fetch(\PDO::FETCH_ASSOC);
+				return $this->populate($row);
+			}
+
+		} catch(Exception $e){
+			die($e->getMessage());
+		}
+	}
+
 	
 	public function getById($id = 0){
 		$stmt = $this->db->prepare("SELECT * FROM users WHERE id = :id");
