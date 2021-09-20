@@ -99,16 +99,20 @@ class Chat implements MessageComponentInterface {
 
             $data = array('action' => 'addMessage', 'msg' => $msg, 'chatRoom' => $from->chatRoom, 'user' => $from->user);
 
+            //Sending message to all admins
             if (empty($recipientId) && !empty($client->user['admin'])) {
-                echo "Sending message to all admins";
-                echo "Sending message to the Admin: " . $client->user['id'];
-
                 $client->send(json_encode($data));
             
-            } elseif($recipientId == $client->user['id']){
-                echo "Sending message to the receipient: " . $client->user['id'];
+            //Sending message to attached admin
+            } elseif($recipientId == $client->user['id'] && !empty($client->user['admin'])){
                 $client->send(json_encode($data));
-            }  
+           
+            //Sending message to user
+            } elseif($recipientId == $client->user['id']){
+
+                $data = array('action' => 'addMessage', 'msg' => $msg, 'user' => array('name' => $from->user['name']));
+                $client->send(json_encode($data));
+            }
         }
     }
 

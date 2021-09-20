@@ -13,7 +13,12 @@
 <div class="container">
     <div class="row content">
 
+
+
         <div class="col-sm-4 col-sm-offset-4">
+            <!--Errors -->
+            <div id="chatErrors" class="alert alert-danger" style="display:none;"></div>
+            <!--/Errors-->
 
             <div id='loginForm'>
                 <p>Login to get support</p>
@@ -33,6 +38,11 @@
 
 
             <div id='chatForm' style="display:none;">
+
+                <button type="button" id="exitChatBtn" class="close" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+
                 <p>Client chat form</p>
 
                 <!--Client chat Form -->
@@ -46,6 +56,7 @@
                             class="form-control">
                 </div>
 
+
                 <button id="sendMsgBtn" class="btn btn-primary btn-block">Send</button>
                 <!--/Client Form -->
             </div>
@@ -55,38 +66,101 @@
 </div>
 
 <script>
-    $(document).ready(() => {
+
+const ChatClient = new(function () {
+    const _root = this;
+    let _cfg = {
+        token:              '',
+        connection:         null,
+        postedMessagesEl:   $('#postedMsgs'),
+        loginFormEl:        $('#loginForm'),
+        userNameInput:      $('#userName'),
+        userEmailInput:     $('#userEmail'),
+        signInButton:       $('#signInBtn'),
+        chatFormEl:         $('#chatForm'),
+        textMsgInput:       $('#textMsg'),
+        sendMsgButton:      $('#sendMsgBtn'),
+        chatErrorsEl:       $('#chatErrors'),
+        exitChatButton:     $('#exitChatBtn')
+    }
+
+    _root.init = function(options){
+        _cfg = $.extend(_cfg, options);
+
+        if(_isTokenExist()){
+            _initWebSocket();
+            _initChatForm();
+        }
+
+        _bindUIActions();
+    }
+
+    const _bindUIActions = function(){
+        _cfg.signInButton.on('click', () =>{
+            _signIn();
+        })
+
+        _cfg.sendMsgButton.on('click', () =>{
+            _sendMsg();
+        })
+
+        _cfg.exitChatButton.on('click', () => {
+            _cfg.conn.close();
+        })
+
+    }
+
+    const _isTokenExist = function(){
         const token = sessionStorage.getItem('token');
         if(token){
-            $('#loginForm').hide();
-            $('#chatForm').show();
-
-            const conn = new WebSocket('ws://localhost:8080?token=' + token);
-
-            conn.onopen = e => console.log("Connection established!");
-            conn.onclose = e => sessionStorage.removeItem('token');
-            conn.onmessage = e => console.log(e.data);
-
-
-            $('#sendMsgBtn').click(() => {
-                const textMsgEl = $('#textMsg')
-                const msg = textMsgEl.val();
-                conn.send(msg);
-
-                textMsgEl.val("");
-            });
+            _cfg.token = token;
+            return true;
         }
-    });
+    }
 
+    const _setToken = function(token){
+        _cfg.token = token || '';
+        sessionStorage.setItem('token', _cfg.token);
+    }
 
-    $('#signInBtn').click(() => {
-        const userName = $('#userName').val(), 
-              userEmail = $('#userEmail').val();
+    const _initWebSocket = function(){
+
+            _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
+
+            _cfg.conn.onopen = e => _onOpenHandler();
+            _cfg.conn.onclose = e => _onCloseHandler();
+            _cfg.conn.onmessage = e => _onMessageHandler(e.data);
+    }
+
+    const _onOpenHandler = function(){
+        console.log("Connection established!");
+    }
+
+    const _onCloseHandler = function(){
+        console.log("Connection closed!");
+        _signOut();
+    }
+
+    const _onMessageHandler = function(data){
+        _parseIncommingMsg(data);
+    }
+
+    const _initChatForm = function(){
+        _cfg.loginFormEl.hide();
+        _cfg.chatFormEl.show();
+    }
+
+    const _initLogInForm = function(){
+        _cfg.loginFormEl.show();
+        _cfg.chatFormEl.hide();
+    }
+
+    const _signIn = function(){
 
         const data = {
             'action': 'logIn',
-            'name': userName,
-            'email': userEmail
+            'name': _cfg.userNameInput.val(),
+            'email': _cfg.userEmailInput.val()
         }
 
         fetch('api.php', {
@@ -98,20 +172,61 @@
         } )
         .then(response => response.json())
         .then(data => {
-            if(data.token.length > 0){
-                $('#loginForm').hide();
-                $('#chatForm').show();
-
-                sessionStorage.setItem('token', data.token);
-                
-                conn = new WebSocket('ws://localhost:8080?token='+data.token);
-
-                conn.onopen = e => console.log("Connection established!");
-                conn.onclose = e => sessionStorage.removeItem('token');
-                conn.onmessage = e => console.log(e.data);
+            if(data.hasOwnProperty('token') && data.token.length > 0){
+                _setToken(data.token);
+                _initWebSocket(data.token);
+                _initChatForm();
             }
+
+            _handleErrors(data)
         })
-    });
+    }
+
+    const _signOut = function() {
+        _initLogInForm();
+        sessionStorage.removeItem('token');
+    }
+
+    const _sendMsg = function(){
+        const message = _cfg.textMsgInput.val();
+
+        _cfg.conn.send(message);
+        _cfg.textMsgInput.val("");
+    }
+
+
+    const _parseIncommingMsg = function (msg) {
+        if(msg === null) {
+            return
+        }
+
+        const msgObj = JSON.parse(msg)
+
+        if(msgObj.action === 'addMessage' && msgObj.msg !== '') {
+            _addNewMessage(msgObj);
+        }
+    }
+
+
+    const _addNewMessage = function(msgObj) {
+        const userName = msgObj.user.name;
+        const textMsg = msgObj.msg;
+
+        _cfg.postedMessagesEl.append("<p>" + textMsg + " from " + userName + "</p>");
+    }
+
+    const _handleErrors = function(data){
+        if(data === undefined || !data.hasOwnProperty('errors')){
+            return;
+        }
+        _cfg.chatErrorsEl.append(data.errors.join('<br/>'));
+        _cfg.chatErrorsEl.show();
+    }
+
+})();
+
+
+ChatClient.init();
 
 </script>
 
