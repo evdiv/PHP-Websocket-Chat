@@ -31,12 +31,18 @@
 
 
         <div id='chatForm' style="display:none;">
+
             <div class="col-sm-4 col-sm-offset-2">
                 <h3>List of customers</h3>
                 <div id='activeUsers'></div>
             </div>
 
             <div class="col-sm-4">
+                <button type="button" id="exitChatBtn" class="close" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+
+
                 <h3>Admin chat form</h3>
 
                 <div class="alert alert-warning" id="postedMsgs" style="min-height: 220px;"></div>
@@ -48,10 +54,7 @@
                             placeholder="Enter text here..." 
                             class="form-control">
 
-                    <input type="text" 
-                            id="chatRoomToken" 
-                            value="" 
-                            class="form-control">        
+                    <input type="hidden" id="chatRoomToken" value="">        
                 </div>
 
                 <button id="sendMsgBtn" class="btn btn-primary btn-block">Send</button>
@@ -62,104 +65,189 @@
 </div>
 
 <script>
-
-    const parseIncommingMsg = function (msg) {
-        if(msg === null) {
-            return
+    const AdminChatClient = new(function() {
+        const _root = this;
+        let _cfg = {
+            token:              '',
+            connection:         null,
+            postedMessagesEl:   $('#postedMsgs'),
+            activeUsers:        $('#activeUsers'),
+            loginFormEl:        $('#loginForm'),
+            userNameInput:      $('#userName'),
+            userEmailInput:     $('#userEmail'),
+            signInButton:       $('#signInBtn'),
+            chatFormEl:         $('#chatForm'),
+            textMsgInput:       $('#textMsg'),
+            chatRoomTokenInput: $('#chatRoomToken'),
+            sendMsgButton:      $('#sendMsgBtn'),
+            chatErrorsEl:       $('#chatErrors'),
+            exitChatButton:     $('#exitChatBtn')
         }
 
-        const msgObj = JSON.parse(msg)
+        _root.init = function(options) {
+            _cfg = $.extend(_cfg, options);
 
-        if(msgObj.action === 'addUser') {
+            if(_isTokenExist()){
+                _initWebSocket();
+                _initChatForm();
+            }
+            _bindUIActions();
+        }
+
+        const _bindUIActions = function(){
+            _cfg.signInButton.on('click', () =>{
+                _signIn();
+            })
+
+            _cfg.sendMsgButton.on('click', () =>{
+                _sendMsg();
+            })
+
+            _cfg.exitChatButton.on('click', () => {
+                _cfg.conn.close();
+            })
+
+            _cfg.activeUsers.on('click', (e) => {
+                const chatRoomToken = $(e.target).attr('data-token');
+                _cfg.chatRoomTokenInput.val(chatRoomToken);
+            })
+        }
+
+        const _isTokenExist = function(){
+            const token = sessionStorage.getItem('token');
+            if(token){
+                _cfg.token = token;
+                return true;
+            }
+        }
+
+        const _setToken = function(token){
+            _cfg.token = token || '';
+            sessionStorage.setItem('token', _cfg.token);
+        }
+
+        const _initWebSocket = function(){
+
+                _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
+
+                _cfg.conn.onopen = e => _onOpenHandler();
+                _cfg.conn.onclose = e => _onCloseHandler();
+                _cfg.conn.onmessage = e => _onMessageHandler(e.data);
+        }
+
+        const _onOpenHandler = function(){
+            console.log("Connection established!");
+        }
+
+        const _onCloseHandler = function(){
+            console.log("Connection closed!");
+            _signOut();
+        }
+
+        const _onMessageHandler = function(data){
+            _parseIncommingMsg(data);
+        }
+
+        const _initChatForm = function(){
+            _cfg.loginFormEl.hide();
+            _cfg.chatFormEl.show();
+        }
+
+        const _initLogInForm = function(){
+            _cfg.loginFormEl.show();
+            _cfg.chatFormEl.hide();
+        }        
+
+        const _signIn = function(){
+
+            const data = {
+                'action': 'logIn',
+                'name': _cfg.userNameInput.val(),
+                'email': _cfg.userEmailInput.val()
+            }
+
+            fetch('api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            } )
+            .then(response => response.json())
+            .then(data => {
+                if(data.hasOwnProperty('token') && data.token.length > 0){
+                    _setToken(data.token);
+                    _initWebSocket(data.token);
+                    _initChatForm();
+                }
+
+                _handleErrors(data)
+            })
+        }
+
+        const _signOut = function() {
+            _initLogInForm();
+            sessionStorage.removeItem('token');
+        }
+
+        const _sendMsg = function(){
+            const message = _cfg.textMsgInput.val();
+            const token = _cfg.chatRoomTokenInput.val();
+
+            const data = {
+                'msg': message,
+                'chatRoomToken': token
+            }
+
+            _cfg.conn.send(JSON.stringify(data));
+            _cfg.textMsgInput.val("");
+        }
+
+        const _parseIncommingMsg = function (msg) {
+            if(msg === null) {
+                return
+            }
+
+            const msgObj = JSON.parse(msg)
+
+            if(msgObj.action === 'addMessage' && msgObj.msg !== '') {
+                _addNewMessage(msgObj);
+            
+            } else if(msgObj.action === 'addUser' && msgObj.chatRoom.token !== '') {
+                _addUser(msgObj);
+            }
+        }
+
+        const _addNewMessage = function(msgObj) {
+            const userName = msgObj.user.name;
+            const textMsg = msgObj.msg;
+            const chatRoomToken = msgObj.chatRoom.token;
+
+            _cfg.postedMessagesEl.append("<p>" + textMsg + " from " + userName + "</p>");
+            _cfg.chatRoomTokenInput.val(chatRoomToken);
+        }
+
+
+        const _addUser = function(msgObj) {
             const userName = msgObj.user.name;
             const chatRoomToken = msgObj.chatRoom.token;
 
             const user = $('p').text(userName).attr('data-token', chatRoomToken).css('cursor', 'pointer');
-            $('#activeUsers').append(user);
-        
-        } else if(msgObj.action === 'addMessage') {
-            const userName = msgObj.user.name;
-            const chatRoomToken = msgObj.chatRoom.token;
-            const textMsg = msgObj.msg;
-
-            $('#postedMsgs').append("<p>" + textMsg + " from " + userName + "</p>");
-            $('#chatRoomToken').val(chatRoomToken);
+            _cfg.activeUsers.append(user);
         }
 
-        console.log(msg);
-    }
-
-
-    $('#signInBtn').click(() => {
-        const userName = $('#userName').val(), 
-              userEmail = $('#userEmail').val();
-
-        const data = {
-            'action': 'logIn',
-            'name': userName,
-            'email': userEmail
-        }
-
-        fetch('api.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        } )
-        .then(response => response.json())
-        .then(data => {
-            if(data.token.length > 0){
-                $('#loginForm').hide();
-                $('#chatForm').show();
-
-                sessionStorage.setItem('token', data.token);
-                
-                conn = new WebSocket('ws://localhost:8080?token='+data.token);
-
-                conn.onopen = e => console.log("Connection established!");
-                conn.onclose = e => sessionStorage.removeItem('token');
-                conn.onmessage = e => parseIncommingMsg(e.data);
+        const _handleErrors = function(data){
+            if(data === undefined || !data.hasOwnProperty('errors')){
+                return;
             }
-        })
-    });
-
-
-    $('#activeUsers').click((el) => {
-        const chatRoomToken = $(el.target).attr('data-token');
-        $('#chatRoomToken').val(chatRoomToken);
-    })
-
-
-    $(document).ready(() => {
-        const token = sessionStorage.getItem('token');
-        if(token){
-            $('#loginForm').hide();
-            $('#chatForm').show();
-
-            const conn = new WebSocket('ws://localhost:8080?token=' + token);
-
-            conn.onopen = e => console.log("Connection established!");
-            conn.onclose = e => sessionStorage.removeItem('token');
-            conn.onmessage = e => parseIncommingMsg(e.data);
-
-            $('#sendMsgBtn').click(() => {
-                const textMsgEl = $('#textMsg')
-                const tokenEl = $('#chatRoomToken')
-
-                const data = {
-                    'msg': textMsgEl.val(),
-                    'chatRoomToken': tokenEl.val()
-                }
-
-                conn.send(JSON.stringify(data));
-                textMsgEl.val("");
-            });
+            _cfg.chatErrorsEl.append(data.errors.join('<br/>'));
+            _cfg.chatErrorsEl.show();
         }
-    });
+
+    })();
 
 
-
+    AdminChatClient.init();
 
 </script>
 
