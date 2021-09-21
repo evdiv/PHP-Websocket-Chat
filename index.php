@@ -102,12 +102,14 @@ const ChatClient = new(function () {
 
         _cfg.sendMsgButton.on('click', () =>{
             _sendMsg();
+            _getStorredMessages();
+            _cfg.textMsgInput.val("");
+
         })
 
         _cfg.exitChatButton.on('click', () => {
             _cfg.conn.close();
         })
-
     }
 
     const _isTokenExist = function(){
@@ -124,16 +126,16 @@ const ChatClient = new(function () {
     }
 
     const _initWebSocket = function(){
+        _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
 
-            _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
-
-            _cfg.conn.onopen = e => _onOpenHandler();
-            _cfg.conn.onclose = e => _onCloseHandler();
-            _cfg.conn.onmessage = e => _onMessageHandler(e.data);
+        _cfg.conn.onopen = e => _onOpenHandler();
+        _cfg.conn.onclose = e => _onCloseHandler();
+        _cfg.conn.onmessage = e => _onMessageHandler(e.data);
     }
 
     const _onOpenHandler = function(){
         console.log("Connection established!");
+        _getStorredMessages();
     }
 
     const _onCloseHandler = function(){
@@ -141,8 +143,9 @@ const ChatClient = new(function () {
         _signOut();
     }
 
-    const _onMessageHandler = function(data){
-        _parseIncommingMsg(data);
+    const _onMessageHandler = function(msg){
+        _handleIncommingMsg(msg);
+        _getStorredMessages();
     }
 
     const _initChatForm = function(){
@@ -185,35 +188,59 @@ const ChatClient = new(function () {
     const _signOut = function() {
         _initLogInForm();
         sessionStorage.removeItem('token');
+        sessionStorage.removeItem('messages');
     }
 
     const _sendMsg = function(){
         const message = _cfg.textMsgInput.val();
+        if(message === ''){
+            return;
+        }
 
         _cfg.conn.send(message);
-        _cfg.textMsgInput.val("");
+        _storeMessage({'msg': message, 'user':{'name': 'Me'}});
     }
 
 
-    const _parseIncommingMsg = function (msg) {
+    const _handleIncommingMsg = function (msg) {
         if(msg === null) {
             return
         }
 
-        const msgObj = JSON.parse(msg)
-
-        if(msgObj.action === 'addMessage' && msgObj.msg !== '') {
-            _addNewMessage(msgObj);
+        const data = JSON.parse(msg)
+        if(data.action === 'addMessage' && data.msg !== '') {
+            _storeMessage(data);
         }
     }
 
 
-    const _addNewMessage = function(msgObj) {
-        const userName = msgObj.user.name;
-        const textMsg = msgObj.msg;
+    const _storeMessage = function(data) {
+        let messages = sessionStorage.getItem('messages');
 
-        _cfg.postedMessagesEl.append("<p>" + textMsg + " from " + userName + "</p>");
+        messages = (messages === null) ? [] : JSON.parse(messages);
+        messages.unshift(data);
+
+        sessionStorage.setItem('messages', JSON.stringify(messages));
     }
+
+
+    const _getStorredMessages = function(){
+        const messages = sessionStorage.getItem('messages');
+
+        if(messages === null) {
+            return;
+        }
+
+        const data = JSON.parse(messages)
+
+        const html = data.map(msg => {
+            return "<p>" + msg.msg + " from " + msg.user.name + "</p>";
+        });
+
+        _cfg.postedMessagesEl.html(html.join(" "));
+
+    }
+
 
     const _handleErrors = function(data){
         if(data === undefined || !data.hasOwnProperty('errors')){

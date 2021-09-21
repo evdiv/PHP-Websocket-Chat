@@ -69,7 +69,6 @@ class Chat implements MessageComponentInterface {
 
             echo "Chat Room ID: " . $chatRoomId . "\n";
 
-        
         } else {
             $ChatRoom = (new ChatRoom())->getById($from->chatRoom['id']);
             $chatRoomId = $from->chatRoom['id'];

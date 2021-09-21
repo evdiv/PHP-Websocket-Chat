@@ -83,6 +83,7 @@ class ChatRoom {
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
+		return $this;
 	}
 
 	public function getByToken($token = ''){
@@ -97,6 +98,7 @@ class ChatRoom {
 		} catch(Exception $e){
 			die($e->getMessage());
 		}
+		return $this;
 	}
 
 	public function attachAdmin($admin_id = 0){
