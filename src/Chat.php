@@ -27,6 +27,7 @@ class Chat implements MessageComponentInterface {
         }
 
         $ChatRoom = (new ChatRoom())->getByToken($queryarray['token']);
+        $ChatRoom->open();
 
         $conn->chatRoom = $ChatRoom->toArray();
         $conn->user = $ChatRoom->user()->toArray();
@@ -34,10 +35,17 @@ class Chat implements MessageComponentInterface {
         // Store the new connection to send messages to later
         $this->clients->attach($conn);
 
+        $chatRooms = $ChatRoom->getAllActive();
+
         foreach ($this->clients as $client) {
-            if (!empty($client->user['admin']) && $conn->user['id'] !== $client->user['id']) {
-                $data = array('action' => 'addUser', 'chatRoom' => $conn->chatRoom, 'user' => $conn->user);
-                $client->send(json_encode($data));
+            if (!empty($client->user['admin'])) {
+
+                $chatRooms = array_filter($chatRooms, function($chatRoom) use ($client){
+                    return $chatRoom['user_id'] !== $client->user['id']; 
+                });
+
+                //send all active chats to admin
+                $client->send(json_encode(array('action' => 'updateChatRooms', 'chatRooms' => $chatRooms), JSON_FORCE_OBJECT));
             }
         }
 
@@ -122,6 +130,20 @@ class Chat implements MessageComponentInterface {
 
         (new ChatRoom())->close($conn->chatRoom['id']);
         (new User())->logOut($conn->user['id']);
+
+        $chatRooms = (new ChatRoom())->getAllActive();
+
+        foreach ($this->clients as $client) {
+            if (!empty($client->user['admin'])) {
+
+                $chatRooms = array_filter($chatRooms, function($chatRoom) use ($client){
+                    return $chatRoom['user_id'] !== $client->user['id']; 
+                });
+
+                //send all active chats to admin
+                $client->send(json_encode(array('action' => 'updateChatRooms', 'chatRooms' => $chatRooms), JSON_FORCE_OBJECT)); 
+            }
+        }
 
         echo "Connection {$conn->resourceId} has disconnected\n";
     }

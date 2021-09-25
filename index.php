@@ -232,8 +232,7 @@ const ChatClient = new(function () {
         }
 
         const data = JSON.parse(messages)
-
-        const html = data.map(msg => {
+        const html = data.reverse().map(msg => {
             return "<p>" + msg.msg + " from " + msg.user.name + "</p>";
         });
 

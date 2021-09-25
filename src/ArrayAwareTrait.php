@@ -23,7 +23,7 @@ trait ArrayAwareTrait
      */
     public function populate($data = array()){
         if(empty($data) || !is_array($data)){
-            return;
+            return $this;
         }
 
         $has = get_object_vars($this);

@@ -81,7 +81,7 @@
             chatRoomTokenInput: $('#chatRoomToken'),
             sendMsgButton:      $('#sendMsgBtn'),
             chatErrorsEl:       $('#chatErrors'),
-            exitChatButton:     $('#exitChatBtn')
+            exitChatButton:     $('#exitChatBtn'),
         }
 
         _root.init = function(options) {
@@ -127,12 +127,10 @@
         }
 
         const _initWebSocket = function(){
-
-                _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
-
-                _cfg.conn.onopen = e => _onOpenHandler();
-                _cfg.conn.onclose = e => _onCloseHandler();
-                _cfg.conn.onmessage = e => _onMessageHandler(e.data);
+            _cfg.conn = new WebSocket('ws://localhost:8080?token=' + _cfg.token);
+            _cfg.conn.onopen = e => _onOpenHandler();
+            _cfg.conn.onclose = e => _onCloseHandler();
+            _cfg.conn.onmessage = e => _onMessageHandler(e.data);
         }
 
         const _onOpenHandler = function(){
@@ -188,45 +186,90 @@
         const _signOut = function() {
             _initLogInForm();
             sessionStorage.removeItem('token');
+            sessionStorage.removeItem('messages');
         }
 
         const _sendMsg = function(){
             const message = _cfg.textMsgInput.val();
             const token = _cfg.chatRoomTokenInput.val();
 
-            const data = {
+            _storeMessage({
+                inbound: false,
+                userName: 'Me',
+                msg: message,
+                chatRoomToken: token
+            })
+
+            _cfg.conn.send(JSON.stringify({
                 'msg': message,
                 'chatRoomToken': token
-            }
+            }));
 
-            _cfg.conn.send(JSON.stringify(data));
-            _cfg.textMsgInput.val("");
+            _cfg.textMsgInput.val("")
+            _getStorredMessagesForChatRoom(token)
         }
 
         const _parseIncommingMsg = function (msg) {
             if(msg === null) {
                 return
             }
-
             const msgObj = JSON.parse(msg)
 
             if(msgObj.action === 'addMessage' && msgObj.msg !== '') {
-                _addNewMessage(msgObj);
+                console.log('Add inbound message')
+
+                _handleIncommingMsg({
+                    inbound: true,
+                    userName: msgObj.user.name,
+                    msg: msgObj.msg,
+                    chatRoomToken: msgObj.chatRoom.token
+                });
+            
+            } else if(msgObj.action === 'updateChatRooms' && msgObj.hasOwnProperty('chatRooms')) {
+                _updateChatRooms(msgObj.chatRooms);
             
             } else if(msgObj.action === 'addUser' && msgObj.chatRoom.token !== '') {
                 _addUser(msgObj);
             }
         }
 
-        const _addNewMessage = function(msgObj) {
-            const userName = msgObj.user.name;
-            const textMsg = msgObj.msg;
-            const chatRoomToken = msgObj.chatRoom.token;
-
-            _cfg.postedMessagesEl.append("<p>" + textMsg + " from " + userName + "</p>");
-            _cfg.chatRoomTokenInput.val(chatRoomToken);
+        const _handleIncommingMsg = function(msgObj) {
+            _storeMessage(msgObj);
+            _getStorredMessagesForChatRoom(msgObj.chatRoomToken);
+            _cfg.chatRoomTokenInput.val(msgObj.chatRoomToken);
         }
 
+
+        const _storeMessage = function(msgObj) {
+            let messages = sessionStorage.getItem('messages');
+
+            messages = (messages === null) ? [] : JSON.parse(messages);
+            messages.unshift({
+                inbound: msgObj.inbound,
+                userName: msgObj.userName,
+                msg: msgObj.msg,
+                token: msgObj.chatRoomToken
+            });
+
+            sessionStorage.setItem('messages', JSON.stringify(messages));
+        }
+
+
+        const _getStorredMessagesForChatRoom = function(token){
+            const messages = sessionStorage.getItem('messages');
+
+            if(messages === null) {
+                return;
+            }
+
+            const msgObj = JSON.parse(messages)
+            const html = msgObj.reverse().map(msg => {
+                return "<p>" + msg.msg + " from " + msg.userName + "</p>";
+            });
+
+            _cfg.postedMessagesEl.html(html.join(" "));
+
+        }
 
         const _addUser = function(msgObj) {
             const userName = msgObj.user.name;
@@ -235,6 +278,27 @@
             const user = $('p').text(userName).attr('data-token', chatRoomToken).css('cursor', 'pointer');
             _cfg.activeUsers.append(user);
         }
+
+
+        const _updateChatRooms = function(chatRooms) {
+            _cfg.activeUsers.html('');
+
+            if(Object.keys(chatRooms).length === 0) {
+                return;
+            }
+
+
+            for(const key in chatRooms) {
+                if(!chatRooms.hasOwnProperty(key)){
+                    continue;
+                }
+
+                let html = "<p style='cursor: pointer' data-token='" + chatRooms[key].token + "'>" + chatRooms[key].name + "</p>"
+                _cfg.activeUsers.append(html)
+                _getStorredMessagesForChatRoom(chatRooms[key].token)
+            }
+        }
+
 
         const _handleErrors = function(data){
             if(data === undefined || !data.hasOwnProperty('errors')){

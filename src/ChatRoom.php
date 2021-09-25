@@ -101,6 +101,21 @@ class ChatRoom {
 		return $this;
 	}
 
+
+	public function getAllActive(){
+		$stmt = $this->db->query("SELECT cr.id, cr.user_id, cr.token, u.name
+									FROM chat_rooms AS cr
+									LEFT JOIN users AS u ON cr.user_id = u.id
+									WHERE cr.active > 0");
+		$chatRooms = array();
+		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+		    $chatRooms[] = $row;
+		}
+
+		return $chatRooms;
+	}
+
+
 	public function attachAdmin($admin_id = 0){
 		if(empty($admin_id)) {
 			return;
@@ -124,6 +139,23 @@ class ChatRoom {
 
 	public function close($id = 0){
 		$stmt = $this->db->prepare("UPDATE chat_rooms SET active = 0 WHERE id = :id");
+		$stmt->bindParam(":id", $id);
+
+		try{
+			if($stmt->execute()){
+				return $stmt->rowCount();
+			}
+
+		} catch(Exception $e){
+			die($e->getMessage());
+		}
+	}
+
+
+	public function open($id = 0){
+		$id = !empty($id) ? $id : $this->id;
+
+		$stmt = $this->db->prepare("UPDATE chat_rooms SET active = 1 WHERE id = :id");
 		$stmt->bindParam(":id", $id);
 
 		try{
