@@ -87,7 +87,7 @@ class User {
 		try{
 			if($stmt->execute()){
 				$row = $stmt->fetch(\PDO::FETCH_ASSOC);
-				return $this->populate($row);
+				return !empty($row) ? $this->populate($row) : false;
 			}
 
 		} catch(Exception $e){
@@ -102,7 +102,7 @@ class User {
 		try{
 			if($stmt->execute()){
 				$row = $stmt->fetch(\PDO::FETCH_ASSOC);
-				return $this->populate($row);
+				return !empty($row) ? $this->populate($row) : false;
 			}
 		} catch(Exception $e){
 			die($e->getMessage());

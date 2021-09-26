@@ -44,8 +44,10 @@
 
 
                 <h3>Admin chat form</h3>
-
-                <div class="alert alert-warning" id="postedMsgs" style="min-height: 220px;"></div>
+                <div class="panel panel-warning">
+                    <div class="panel-heading" id="currentChatClient"></div>
+                    <div class="panel-body" id="postedMsgs" style="min-height: 220px;"></div>
+                </div>
 
                 <div class="form-group">
                     <input type="text" 
@@ -77,6 +79,7 @@
             userEmailInput:     $('#userEmail'),
             signInButton:       $('#signInBtn'),
             chatFormEl:         $('#chatForm'),
+            currentChatClient:  $('#currentChatClient'),
             textMsgInput:       $('#textMsg'),
             chatRoomTokenInput: $('#chatRoomToken'),
             sendMsgButton:      $('#sendMsgBtn'),
@@ -109,7 +112,11 @@
 
             _cfg.activeUsers.on('click', (e) => {
                 const chatRoomToken = $(e.target).attr('data-token');
+                const userName = $(e.target).text()
+
                 _cfg.chatRoomTokenInput.val(chatRoomToken);
+                _cfg.currentChatClient.html(`Chat with <b>${userName}</b>`);
+                _getStorredMessagesForChatRoom(chatRoomToken);
             })
         }
 
@@ -216,8 +223,6 @@
             const msgObj = JSON.parse(msg)
 
             if(msgObj.action === 'addMessage' && msgObj.msg !== '') {
-                console.log('Add inbound message')
-
                 _handleIncommingMsg({
                     inbound: true,
                     userName: msgObj.user.name,
@@ -234,9 +239,10 @@
         }
 
         const _handleIncommingMsg = function(msgObj) {
+            _cfg.chatRoomTokenInput.val(msgObj.chatRoomToken);
+            _cfg.currentChatClient.text(`Chat with ${msgObj.userName}`);
             _storeMessage(msgObj);
             _getStorredMessagesForChatRoom(msgObj.chatRoomToken);
-            _cfg.chatRoomTokenInput.val(msgObj.chatRoomToken);
         }
 
 
@@ -264,9 +270,15 @@
 
             const msgObj = JSON.parse(messages)
             const html = msgObj.reverse().map(msg => {
-                return "<p>" + msg.msg + " from " + msg.userName + "</p>";
+                if(msg.token === token){
+                    return "<p>" + msg.msg + " from " + msg.userName + "</p>";
+                }
             });
 
+            if(_cfg.chatRoomTokenInput.val().length === 0) {
+                _cfg.postedMessagesEl.html("<b>Select user to see messages</b>");
+                return;
+            }
             _cfg.postedMessagesEl.html(html.join(" "));
 
         }
